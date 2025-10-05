@@ -12,6 +12,9 @@ use MageOS\ThemeOptimization\ViewModel\BfCache;
 /** @var HyvaCsp $hyvaCsp */
 /** @var BfCache $bfcacheConfig */
 $bfcacheConfig = $viewModels->require(BfCache::class);
+$isCustomerLoggedIn = $bfcacheConfig->isCustomerLoggedIn() ? 'true' : 'false';
+$enableUserInteractionRefresh = $bfcacheConfig->isReloadMiniCartOnInteraction() ? 'true' : 'false';
+$autoCloseMenuMobile = $bfcacheConfig->autoCloseMenuMobile() ? 'true' : 'false';
 ?>
 
 <script>
@@ -19,32 +22,29 @@ $bfcacheConfig = $viewModels->require(BfCache::class);
     class BFCacheHandler {
         constructor() {
             this.options = {
-                isCustomerLoggedIn: <?= json_encode($bfcacheConfig->isCustomerLoggedIn()) ?>,
-                enableUserInteractionRefreshMiniCart: <?= json_encode($bfcacheConfig->isReloadMiniCartOnInteraction()) ?>,
-                autoCloseMenuMobile: <?= json_encode($bfcacheConfig->autoCloseMenuMobile()) ?>
+                isCustomerLoggedIn: <?= $isCustomerLoggedIn ?>,
+                enableUserInteractionRefreshMiniCart: <?= $enableUserInteractionRefresh ?>,
+                autoCloseMenuMobile: <?= $autoCloseMenuMobile ?>
             };
 
             this.userInteractionEvents = ['touchstart', 'mouseover', 'wheel', 'scroll', 'keydown'];
             this._reloadTriggered = false;
+            this.dom = {};
 
-            // Element selectors centralized
+            // Centralized selectors for reuse
             this.selectors = {
                 cartDrawer: "[x-data^='initCartDrawer']",
                 mobileMenu: "[x-data^='initMenuMobile']",
                 desktopMenu: "[x-data^='initMenuDesktop']"
             };
-
-            this.dom = {};
         }
 
         /**
-         * Safe DOM getter (cached but re-queries if missing or removed from DOM)
+         * Safe DOM getter with caching (re-queries only if element removed)
          */
         getElement(key) {
             const cached = this.dom[key];
-            if (cached && document.contains(cached)) {
-                return cached;
-            }
+            if (cached && document.contains(cached)) return cached;
             const el = document.querySelector(this.selectors[key]);
             if (el) this.dom[key] = el;
             return el;
@@ -56,6 +56,9 @@ $bfcacheConfig = $viewModels->require(BfCache::class);
             this.actionAutoCloseMenu(this.options.autoCloseMenuMobile);
         }
 
+        /**
+         * Refresh minicart on user interaction or immediately
+         */
         refreshMiniCart() {
             if (this.options.enableUserInteractionRefreshMiniCart) {
                 this.refreshMiniCartOnUserInteraction();
@@ -71,13 +74,15 @@ $bfcacheConfig = $viewModels->require(BfCache::class);
                 );
                 this.actionRefreshMiniCart();
             };
-
             const opts = { once: true, passive: true };
             this.userInteractionEvents.forEach(eventType =>
                 window.addEventListener(eventType, refreshMiniCart, opts)
             );
         }
 
+        /**
+         * Compare frontend & backend login state and reload if mismatched
+         */
         reloadCustomerLoginPage() {
             const backendLoggedInState = this.options.isCustomerLoggedIn;
 
@@ -99,15 +104,21 @@ $bfcacheConfig = $viewModels->require(BfCache::class);
             }
         }
 
+        /**
+         * Dispatch Magento event to refresh customer sections (minicart, etc.)
+         */
         actionRefreshMiniCart() {
             window.dispatchEvent(new CustomEvent('reload-customer-section-data'));
         }
 
+        /**
+         * Close cart drawer & optionally close mobile/desktop menus
+         */
         actionAutoCloseMenu(autoCloseMenuMobile) {
             window.dispatchEvent(new Event('clear-messages'));
 
             const cartDrawer = this.getElement('cartDrawer');
-            if (cartDrawer && typeof Alpine !== 'undefined' && Alpine.$data) {
+            if (cartDrawer && typeof Alpine !== 'undefined') {
                 requestAnimationFrame(() => {
                     const cartDrawerData = Alpine.$data(cartDrawer);
                     if (cartDrawerData?.open !== undefined) {
@@ -122,6 +133,9 @@ $bfcacheConfig = $viewModels->require(BfCache::class);
             }
         }
 
+        /**
+         * Handle closing of mobile & desktop menus via Alpine.js
+         */
         handleMenuClosure() {
             if (typeof Alpine === 'undefined' || !Alpine.$data) return;
 
@@ -143,7 +157,9 @@ $bfcacheConfig = $viewModels->require(BfCache::class);
         }
     }
 
-    // Pageshow handler (BFCache restore)
+    /**
+     * Page restoration handler — persistent global instance
+     */
     window.addEventListener('pageshow', (event) => {
         if (event.persisted) {
             (window._bfcacheHandler ??= new BFCacheHandler()).init();
