@@ -15,118 +15,141 @@ $bfcacheConfig = $viewModels->require(BfCache::class);
 ?>
 
 <script>
-    (() => {
-        class BFCacheHandler {
-            constructor() {
-                this.options = {
-                    isCustomerLoggedIn: <?= json_encode($bfcacheConfig->isCustomerLoggedIn()) ?>,
-                    enableUserInteractionRefreshMiniCart: <?= json_encode($bfcacheConfig->isReloadMiniCartOnInteraction()) ?>,
-                    autoCloseMenuMobile: <?= json_encode($bfcacheConfig->autoCloseMenuMobile()) ?>
-                };
+(() => {
+    class BFCacheHandler {
+        constructor() {
+            this.options = {
+                isCustomerLoggedIn: <?= json_encode($bfcacheConfig->isCustomerLoggedIn()) ?>,
+                enableUserInteractionRefreshMiniCart: <?= json_encode($bfcacheConfig->isReloadMiniCartOnInteraction()) ?>,
+                autoCloseMenuMobile: <?= json_encode($bfcacheConfig->autoCloseMenuMobile()) ?>
+            };
 
-                this.userInteractionEvents = ['touchstart', 'mouseover', 'wheel', 'keydown'];
+            this.userInteractionEvents = ['touchstart', 'mouseover', 'wheel', 'scroll', 'keydown'];
+            this._reloadTriggered = false;
+
+            // Element selectors centralized
+            this.selectors = {
+                cartDrawer: "[x-data^='initCartDrawer']",
+                mobileMenu: "[x-data^='initMenuMobile']",
+                desktopMenu: "[x-data^='initMenuDesktop']"
+            };
+
+            this.dom = {};
+        }
+
+        /**
+         * Safe DOM getter (cached but re-queries if missing or removed from DOM)
+         */
+        getElement(key) {
+            const cached = this.dom[key];
+            if (cached && document.contains(cached)) {
+                return cached;
             }
+            const el = document.querySelector(this.selectors[key]);
+            if (el) this.dom[key] = el;
+            return el;
+        }
 
-            init() {
-                this.refreshMiniCart();
-                this.reloadCustomerLoginPage();
-                this.actionAutoCloseMenu(this.options.autoCloseMenuMobile);
+        init() {
+            this.refreshMiniCart();
+            this.reloadCustomerLoginPage();
+            this.actionAutoCloseMenu(this.options.autoCloseMenuMobile);
+        }
+
+        refreshMiniCart() {
+            if (this.options.enableUserInteractionRefreshMiniCart) {
+                this.refreshMiniCartOnUserInteraction();
+            } else {
+                this.actionRefreshMiniCart();
             }
+        }
 
-            refreshMiniCart() {
-                if (this.options.enableUserInteractionRefreshMiniCart) {
-                    this.refreshMiniCartOnUserInteraction();
-                } else {
-                    this.actionRefreshMiniCart();
+        refreshMiniCartOnUserInteraction() {
+            const refreshMiniCart = () => {
+                this.userInteractionEvents.forEach(eventType =>
+                    window.removeEventListener(eventType, refreshMiniCart)
+                );
+                this.actionRefreshMiniCart();
+            };
+
+            const opts = { once: true, passive: true };
+            this.userInteractionEvents.forEach(eventType =>
+                window.addEventListener(eventType, refreshMiniCart, opts)
+            );
+        }
+
+        reloadCustomerLoginPage() {
+            const backendLoggedInState = this.options.isCustomerLoggedIn;
+
+            let customerData = null;
+            try {
+                const cacheStorage = localStorage.getItem('mage-cache-storage');
+                if (cacheStorage) {
+                    customerData = JSON.parse(cacheStorage).customer || null;
                 }
+            } catch {
+                // Ignore parse errors silently
             }
 
-            refreshMiniCartOnUserInteraction() {
-                const refreshMiniCart = () => {
-                    this.userInteractionEvents.forEach(eventType => {
-                        window.removeEventListener(eventType, refreshMiniCart);
-                    });
-                    this.actionRefreshMiniCart();
-                };
+            const frontendLoggedInState = Boolean(customerData?.firstname);
 
-                this.userInteractionEvents.forEach(eventType => {
-                    window.addEventListener(eventType, refreshMiniCart, {
-                        once: true,
-                        passive: true
-                    });
-                });
+            if (frontendLoggedInState !== backendLoggedInState && !this._reloadTriggered) {
+                this._reloadTriggered = true;
+                window.location.reload();
             }
+        }
 
-            reloadCustomerLoginPage() {
-                const backendLoggedInState = this.options.isCustomerLoggedIn;
+        actionRefreshMiniCart() {
+            window.dispatchEvent(new CustomEvent('reload-customer-section-data'));
+        }
 
-                const getCustomerDataFromStorage = () => {
-                    try {
-                        const cacheStorage = localStorage.getItem('mage-cache-storage');
-                        const customerData = cacheStorage ? JSON.parse(cacheStorage).customer : null;
-                        return customerData;
-                    } catch (error) {
-                        console.warn('BFCache: Failed to parse customer data from localStorage', error);
-                        return null;
-                    }
-                };
+        actionAutoCloseMenu(autoCloseMenuMobile) {
+            window.dispatchEvent(new Event('clear-messages'));
 
-                const customerData = getCustomerDataFromStorage();
-                const frontendLoggedInState = Boolean(customerData?.firstname);
-
-                if (frontendLoggedInState !== backendLoggedInState) {
-                    window.location.reload();
-                }
-            }
-
-            actionRefreshMiniCart() {
-                window.dispatchEvent(new CustomEvent('reload-customer-section-data'));
-            }
-
-            actionAutoCloseMenu(autoCloseMenuMobile) {
-                window.dispatchEvent(new Event('clear-messages'));
-
-                const cartDrawer = document.querySelector("[x-data^='initCartDrawer']");
+            const cartDrawer = this.getElement('cartDrawer');
+            if (cartDrawer && typeof Alpine !== 'undefined' && Alpine.$data) {
                 requestAnimationFrame(() => {
-                    if (cartDrawer && typeof Alpine !== 'undefined') {
-                        const cartDrawerData = Alpine.$data(cartDrawer);
-                        if (cartDrawerData?.open !== undefined) {
-                            cartDrawerData.open = false;
-                            document.body.style.overflow = '';
-                        }
+                    const cartDrawerData = Alpine.$data(cartDrawer);
+                    if (cartDrawerData?.open !== undefined) {
+                        cartDrawerData.open = false;
+                        document.body.style.overflow = '';
                     }
                 });
+            }
 
-                if (autoCloseMenuMobile) {
-                    this.handleMenuClosure();
+            if (autoCloseMenuMobile) {
+                this.handleMenuClosure();
+            }
+        }
+
+        handleMenuClosure() {
+            if (typeof Alpine === 'undefined' || !Alpine.$data) return;
+
+            const mobileMenu = this.getElement('mobileMenu');
+            if (mobileMenu) {
+                const mobileMenuData = Alpine.$data(mobileMenu);
+                if (mobileMenuData?.open !== undefined) {
+                    mobileMenuData.open = false;
                 }
             }
 
-            handleMenuClosure() {
-                const mobileMenu = document.querySelector("[x-data^='initMenuMobile']");
-                if (mobileMenu && typeof Alpine !== 'undefined') {
-                    const mobileMenuData = Alpine.$data(mobileMenu);
-                    if (mobileMenuData?.open !== undefined) {
-                        mobileMenuData.open = false;
-                    }
-                }
-
-                const desktopMenu = document.querySelector("[x-data^='initMenuDesktop']");
-                if (desktopMenu && typeof Alpine !== 'undefined') {
-                    const desktopMenuData = Alpine.$data(desktopMenu);
-                    if (desktopMenuData?.hoverPanelActiveId !== undefined) {
-                        desktopMenuData.hoverPanelActiveId = 0;
-                    }
+            const desktopMenu = this.getElement('desktopMenu');
+            if (desktopMenu) {
+                const desktopMenuData = Alpine.$data(desktopMenu);
+                if (desktopMenuData?.hoverPanelActiveId !== undefined) {
+                    desktopMenuData.hoverPanelActiveId = 0;
                 }
             }
-        };
+        }
+    }
 
-        // Always run init on pageshow (back/forward navigation + BFCache restore)
-        const handlePageShow = () => {
-            new BFCacheHandler().init();
-        };
-
-        window.addEventListener('pageshow', handlePageShow, { passive: true });
-    })();
+    // Pageshow handler (BFCache restore)
+    window.addEventListener('pageshow', (event) => {
+        if (event.persisted) {
+            (window._bfcacheHandler ??= new BFCacheHandler()).init();
+        }
+    }, { passive: true });
+})();
 </script>
+
 <?php $hyvaCsp->registerInlineScript() ?>
