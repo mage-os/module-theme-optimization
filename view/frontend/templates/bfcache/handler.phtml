@@ -18,31 +18,43 @@ $autoCloseMenuMobile = $bfcacheConfig->autoCloseMenuMobile() ? 'true' : 'false';
 $script = <<<JS
     (() => {
         class BFCacheHandler {
-            /**
-             * Initialize BFCache handler with configuration options
-             */
             constructor() {
                 this.options = {
                     isCustomerLoggedIn: {$isCustomerLoggedIn},
                     enableUserInteractionRefreshMiniCart: {$enableUserInteractionRefresh},
                     autoCloseMenuMobile: {$autoCloseMenuMobile}
                 };
-
+    
                 this.userInteractionEvents = ['touchstart', 'mouseover', 'wheel', 'scroll', 'keydown'];
+                this._reloadTriggered = false;
+                this.dom = {};
+    
+                // Centralized selectors for reuse
+                this.selectors = {
+                    minicartCloseButton: '#btn-minicart-close',
+                    htmlElement: 'html'
+                };
             }
-
+    
             /**
-             * Initialize all BFCache functionalities
+             * Safe DOM getter with caching (re-queries only if element removed)
              */
+            getElement(key) {
+                const cached = this.dom[key];
+                if (cached && document.contains(cached)) return cached;
+                const el = document.querySelector(this.selectors[key]);
+                if (el) this.dom[key] = el;
+                return el;
+            }
+    
             init() {
                 this.refreshMiniCart();
                 this.reloadCustomerLoginPage();
                 this.actionAutoCloseMenu(this.options.autoCloseMenuMobile);
             }
-
+    
             /**
-             * Refresh minicart based on configuration
-             * Either immediately or on first user interaction
+             * Refresh minicart on user interaction or immediately
              */
             refreshMiniCart() {
                 if (this.options.enableUserInteractionRefreshMiniCart) {
@@ -51,56 +63,46 @@ $script = <<<JS
                     this.actionRefreshMiniCart();
                 }
             }
-
-            /**
-             * Refresh minicart on first user interaction
-             * Removes event listeners after first trigger to avoid multiple calls
-             */
+    
             refreshMiniCartOnUserInteraction() {
                 const refreshMiniCart = () => {
-                    this.userInteractionEvents.forEach(eventType => {
-                        window.removeEventListener(eventType, refreshMiniCart);
-                    });
+                    this.userInteractionEvents.forEach(eventType =>
+                        window.removeEventListener(eventType, refreshMiniCart)
+                    );
                     this.actionRefreshMiniCart();
                 };
-
-                this.userInteractionEvents.forEach(eventType => {
-                    window.addEventListener(eventType, refreshMiniCart, {
-                        once: true,
-                        passive: true
-                    });
-                });
+                const opts = { once: true, passive: true };
+                this.userInteractionEvents.forEach(eventType =>
+                    window.addEventListener(eventType, refreshMiniCart, opts)
+                );
             }
-
+    
             /**
-             * Check customer login state consistency and reload if needed
-             * Compares backend state with frontend localStorage state
+             * Compare frontend & backend login state and reload if mismatched
              */
             reloadCustomerLoginPage() {
                 const backendLoggedInState = this.options.isCustomerLoggedIn;
-
-                const getCustomerDataFromStorage = () => {
-                    try {
-                        const cacheStorage = localStorage.getItem('mage-cache-storage');
-                        const customerData = cacheStorage ? JSON.parse(cacheStorage).customer : null;
-                        return customerData;
-                    } catch (error) {
-                        console.warn('BFCache: Failed to parse customer data from localStorage', error);
-                        return null;
+    
+                let customerData = null;
+                try {
+                    const cacheStorage = localStorage.getItem('mage-cache-storage');
+                    if (cacheStorage) {
+                        customerData = JSON.parse(cacheStorage).customer || null;
                     }
-                };
-
-                const customerData = getCustomerDataFromStorage();
+                } catch {
+                    // Ignore parse errors silently
+                }
+    
                 const frontendLoggedInState = Boolean(customerData?.firstname);
-
-                if (frontendLoggedInState !== backendLoggedInState) {
+    
+                if (frontendLoggedInState !== backendLoggedInState && !this._reloadTriggered) {
+                    this._reloadTriggered = true;
                     window.location.reload();
                 }
             }
-
+    
             /**
-             * Update minicart data from customer data sections
-             * Reloads cart section to ensure accurate item count and totals
+             * Dispatch Magento event to refresh customer sections (minicart, etc.)
              */
             actionRefreshMiniCart() {
                 require([
@@ -109,51 +111,51 @@ $script = <<<JS
                     customerData.reload(['cart'], true);
                 });
             }
-
+    
             /**
-             * Handles cart drawer menu and mobile menu state management
-             *
-             * @param {boolean} autoCloseMenuMobile - Whether to auto-close mobile menu
+             * Close minicart & optionally close mobile menu
              */
             actionAutoCloseMenu(autoCloseMenuMobile) {
                 require([
-                    'jquery',
                     'Magento_Customer/js/customer-data'
-                ], function ($, customerData) {
+                ], ((customerData) => {
                     customerData.reload(['messages'], true);
-
-                    const minicartCloseButton = $('#btn-minicart-close');
+    
+                    const minicartCloseButton = document.querySelector(this.selectors.minicartCloseButton);
                     if (minicartCloseButton.length) {
                         minicartCloseButton.trigger('click');
                     }
-
+    
                     if (autoCloseMenuMobile) {
-                        const htmlElement = $('html');
-
-                        const navigationClasses = ['nav-open', 'nav-before-open'];
-                        navigationClasses.forEach(function(className) {
-                            if (htmlElement.hasClass(className)) {
-                                htmlElement.removeClass(className);
-                            }
-                        });
+                        this.handleMenuClosure();
+                    }
+                }).bind(this));
+            }
+    
+            /**
+             * Handle closing of mobile menu
+             */
+            handleMenuClosure() {
+                const htmlElement = document.querySelector(this.selectors.htmlElement);
+    
+                const navigationClasses = ['nav-open', 'nav-before-open'];
+                navigationClasses.forEach(className => {
+                    if (htmlElement.hasClass(className)) {
+                        htmlElement.removeClass(className);
                     }
                 });
             }
-        };
-
+        }
+    
         /**
-         * Handle pageshow event for BFCache scenarios
-         * Detects back/forward navigation and page restoration from BFCache
+         * Page restoration handler — persistent global instance
          */
-        const handlePageShow = (event) => {
+        window.addEventListener('pageshow', (event) => {
             if (event.persisted) {
-                new BFCacheHandler().init();
+                (window._bfcacheHandler ??= new BFCacheHandler()).init();
             }
-        };
-
-        // Register event listener with proper cleanup capability
-        window.addEventListener('pageshow', handlePageShow, { passive: true });
+        }, { passive: true });
     })();
-JS;
+    JS;
 ?>
 <?= /* @noEscape */ $secureRenderer->renderTag('script', ['type' => 'text/javascript'], $script, false) ?>
