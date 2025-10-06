@@ -39,9 +39,10 @@ $autoCloseMenuMobile = $bfcacheConfig->autoCloseMenuMobile() ? 'true' : 'false';
             };
         }
 
+        <?php
         /**
          * Safe DOM getter with caching (re-queries only if element removed)
-         */
+         */ ?>
         getElement(key) {
             const cached = this.dom[key];
             if (cached && document.contains(cached)) return cached;
@@ -56,9 +57,10 @@ $autoCloseMenuMobile = $bfcacheConfig->autoCloseMenuMobile() ? 'true' : 'false';
             this.actionAutoCloseMenu(this.options.autoCloseMenuMobile);
         }
 
+        <?php
         /**
          * Refresh minicart on user interaction or immediately
-         */
+         */ ?>
         refreshMiniCart() {
             if (this.options.enableUserInteractionRefreshMiniCart) {
                 this.refreshMiniCartOnUserInteraction();
@@ -80,9 +82,10 @@ $autoCloseMenuMobile = $bfcacheConfig->autoCloseMenuMobile() ? 'true' : 'false';
             );
         }
 
+        <?php
         /**
          * Compare frontend & backend login state and reload if mismatched
-         */
+         */ ?>
         reloadCustomerLoginPage() {
             const backendLoggedInState = this.options.isCustomerLoggedIn;
 
@@ -104,16 +107,18 @@ $autoCloseMenuMobile = $bfcacheConfig->autoCloseMenuMobile() ? 'true' : 'false';
             }
         }
 
+        <?php
         /**
          * Dispatch Magento event to refresh customer sections (minicart, etc.)
-         */
+         */ ?>
         actionRefreshMiniCart() {
             window.dispatchEvent(new CustomEvent('reload-customer-section-data'));
         }
 
+        <?php
         /**
          * Close cart drawer & optionally close mobile/desktop menus
-         */
+         */ ?>
         actionAutoCloseMenu(autoCloseMenuMobile) {
             window.dispatchEvent(new Event('clear-messages'));
 
@@ -133,9 +138,10 @@ $autoCloseMenuMobile = $bfcacheConfig->autoCloseMenuMobile() ? 'true' : 'false';
             }
         }
 
+        <?php
         /**
          * Handle closing of mobile & desktop menus via Alpine.js
-         */
+         */ ?>
         handleMenuClosure() {
             if (typeof Alpine === 'undefined' || !Alpine.$data) return;
 
@@ -157,9 +163,10 @@ $autoCloseMenuMobile = $bfcacheConfig->autoCloseMenuMobile() ? 'true' : 'false';
         }
     }
 
+    <?php
     /**
      * Page restoration handler — persistent global instance
-     */
+     */ ?>
     window.addEventListener('pageshow', (event) => {
         if (event.persisted) {
             (window._bfcacheHandler ??= new BFCacheHandler()).init();
