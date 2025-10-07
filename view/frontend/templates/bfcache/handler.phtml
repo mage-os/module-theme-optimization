@@ -122,8 +122,8 @@ $script = <<<JS
                     customerData.reload(['messages'], true);
     
                     const minicartCloseButton = document.querySelector(this.selectors.minicartCloseButton);
-                    if (minicartCloseButton.length) {
-                        minicartCloseButton.trigger('click');
+                    if (minicartCloseButton) {
+                        minicartCloseButton.click();
                     }
     
                     if (autoCloseMenuMobile) {
@@ -140,8 +140,8 @@ $script = <<<JS
     
                 const navigationClasses = ['nav-open', 'nav-before-open'];
                 navigationClasses.forEach(className => {
-                    if (htmlElement.hasClass(className)) {
-                        htmlElement.removeClass(className);
+                    if (htmlElement.classList.contains(className)) {
+                        htmlElement.classList.remove(className);
                     }
                 });
             }
