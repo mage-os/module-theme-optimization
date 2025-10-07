@@ -174,5 +174,5 @@ $autoCloseMenuMobile = $bfcacheConfig->autoCloseMenuMobile() ? 'true' : 'false';
     }, { passive: true });
 })();
 </script>
-
 <?php $hyvaCsp->registerInlineScript() ?>
+<?php /** The $hyvaCsp->registerInlineScript() has to be called directly after the closing script tag! There must be no other HTML in between. */ ?>
