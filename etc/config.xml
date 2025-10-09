@@ -32,7 +32,7 @@ productalert</exclude_paths>
             <view_transitions>
                 <enable>1</enable>
                 <enable_admin>1</enable_admin>
-                <enable_for_bfcache>0</enable_for_bfcache>
+                <enable_for_bfcache>1</enable_for_bfcache>
             </view_transitions>
         </system>
     </default>
