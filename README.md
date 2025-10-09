@@ -33,25 +33,7 @@ The module provides settings in the Magento Admin Panel under: **Stores > Config
 
 All values can be configured at Default, Website, and Store View scopes.
 
-There is no configuration for the Page Transitions feature. When installed, page transitions are always enabled for all Magento themes (frontend and admin panel).
-
-### Speculative Loading
-* **Enable Speculation Rules** - Enables speculative loading to preload pages before links are clicked, making perceived load times faster. (Default: Yes)
-* **Mode** - Choose between prefetch and prerender modes. (Default: prefetch)
-  - Prefetch: Downloads resources in advance
-  - Prerender: Fully renders pages in advance (faster but may affect analytics data)
-* **Eagerness Level** - Controls how aggressively pages are preloaded. (Default: Moderate)
-  - Conservative: Minimal preloading, only when very likely to be needed
-  - Moderate: Balanced approach between performance and resource usage
-  - Eager: Aggressive preloading for maximum user experience, at the cost of loading pages the user may never visit
-* **Exclude URL Patterns** - URL patterns to never preload. One pattern per line. (Default: customer, login, logout, auth, cart, checkout, search, download, redirect, rewrite, store, productalert)
-  - URL patterns are matched against the request URI. We recommend entering part or full route paths, like "customer" (to exclude all customer pages) or "customer/account/logout" (to specifically exclude logout).
-* **Exclude File Extensions** - File extensions to never preload. (Default: pdf, zip)
-* **Exclude Selectors** - CSS selectors for links to never preload. Enter one selector per line. (Default: .do-not-prerender)
-
 ### Back/Forward Cache
-
-Note: bfcache availability may vary based on your Full Page Cache engine.
 
 * **Enable Back/Forward Cache** - Enable back/forward cache to store pages in browser memory temporarily for faster navigation. (Default: Yes)
 * **Update Mini Cart on User Interaction**
@@ -61,7 +43,11 @@ Note: bfcache availability may vary based on your Full Page Cache engine.
 * **Auto Close Menu** - Automatically close open menus when page is restored from back/forward cache (for compatible themes). (Default: Yes)
 * **Exclude URLs** - Optional configuration to exclude specific URL patterns from back/forward cache. Enter URL parts (substring), one per line. The extension automatically excludes non-cacheable URLs, so this is only needed for custom cached URLs that load private data via JavaScript.
 
-#### If you use Varnish FPC
+> [!IMPORTANT]  
+> bfcache availability varies based on your Full Page Cache engine and hosting. Some require additional setup.
+
+<details>
+<summary><strong>READ MORE: Configuring Back/Forward cache with Varnish FPC</strong></summary>
 
 For the Back/Forward Cache feature to work with Varnish Full Page Cache, you must modify your VCL file's `vcl_deliver` subroutine by updating the existing Cache-Control header logic.
 
@@ -82,8 +68,10 @@ sub vcl_deliver {
 - This modification requires manual VCL file editing and Varnish service restart
 - Test thoroughly in a staging environment before deploying to production
 - Consider using [elgentos/magento2-varnish-extended](https://github.com/elgentos/magento2-varnish-extended) for a more complete enhanced Varnish configuration
+</details>
 
-#### If you use Fastly (including Adobe Commerce Cloud)
+<details>
+<summary><strong>READ MORE: Configuring Back/Forward cache with Fastly (including Adobe Commerce Cloud)</strong></summary>
 
 For Fastly CDN, you must create two custom VCL snippets through the Magento admin panel, as follows:
 
@@ -130,6 +118,27 @@ Save the snippet
 **Step 4: Deploy**
 
 Click **Upload VCL to Fastly**, and Activate the uploaded VCL
+</details>
+
+### Speculative Loading
+* **Enable Speculation Rules** - Enables speculative loading to preload pages before links are clicked, making perceived load times faster. (Default: Yes)
+* **Mode** - Choose between prefetch and prerender modes. (Default: prefetch)
+  - Prefetch: Downloads resources in advance
+  - Prerender: Fully renders pages in advance (faster but may affect analytics data and UI changes)
+* **Eagerness Level** - Controls how aggressively pages are preloaded. (Default: Moderate)
+  - Conservative: Minimal preloading, only when very likely to be needed
+  - Moderate: Balanced approach between performance and resource usage
+  - Eager: Aggressive preloading for maximum user experience, at the cost of loading pages the user may never visit
+* **Exclude URL Patterns** - URL patterns to never preload. One pattern per line. (Default: customer, login, logout, auth, cart, checkout, search, download, redirect, rewrite, store, productalert)
+  - URL patterns are matched against the request URI. We recommend entering part or full route paths, like "customer" (to exclude all customer pages) or "customer/account/logout" (to specifically exclude logout).
+* **Exclude File Extensions** - File extensions to never preload. (Default: pdf, zip)
+* **Exclude Selectors** - CSS selectors for links to never preload. Enter one selector per line. (Default: .do-not-prerender)
+
+### View Transitions
+* **Enable View Transitions** - Toggle animated page changes for storefront. (Default: Yes)
+* **Enable View Transitions for Admin** - Enable transitions in Admin; disable if using a theme with built-in transitions. (Default: Yes)
+* **Apply on Back/Forward** - Show transitions when using browser navigation; can be disabled for faster restores. (Default: Yes)
+
 ## Contributors
 
 Initial module, page transitions, and speculation rules contributed by [@rhoerr](https://github.com/rhoerr).
