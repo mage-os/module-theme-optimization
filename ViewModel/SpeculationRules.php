@@ -1,36 +1,43 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace MageOS\ThemeOptimization\ViewModel;
 
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\Serialize\SerializerInterface;
 use Magento\Framework\UrlInterface;
-use Magento\Framework\View\Element\Block\ArgumentInterface;
 use Magento\Framework\View\DesignInterface;
+use Magento\Framework\View\Element\Block\ArgumentInterface;
 use Magento\Store\Model\ScopeInterface;
+use InvalidArgumentException;
 
 class SpeculationRules implements ArgumentInterface
 {
-    protected const CONFIG_PATH = 'system/speculation_rules/';
-    protected const MODE_PREFETCH = 'prefetch';
-    protected const MODE_PRERENDER = 'prerender';
-    protected const FETCH_MODES = [self::MODE_PREFETCH, self::MODE_PRERENDER];
-    protected const EAGERNESS_MODES = ['conservative', 'moderate', 'eager'];
+    protected const string CONFIG_PATH = 'system/speculation_rules/';
+    protected const string MODE_PREFETCH = 'prefetch';
+    protected const string MODE_PRERENDER = 'prerender';
+    protected const string EAGERNESS_DEFAULT = 'moderate';
+    protected const array FETCH_MODES = [self::MODE_PREFETCH, self::MODE_PRERENDER];
+    protected const array EAGERNESS_MODES = ['conservative', 'moderate', 'eager'];
 
     public function __construct(
         protected ScopeConfigInterface $scopeConfig,
-        protected UrlInterface         $urlBuilder,
-        protected SerializerInterface  $serializer,
-        protected DesignInterface      $viewDesign
-    )
-    {
+        protected UrlInterface $urlBuilder,
+        protected SerializerInterface $serializer,
+        protected DesignInterface $viewDesign
+    ) {
     }
 
+    /**
+     * @return bool
+     */
     public function isEnabled(): bool
     {
         return (bool)$this->getConfigValue('enable');
     }
 
+    /**
+     * @return string
+     */
     public function getMode(): string
     {
         $mode = $this->getConfigValue('mode');
@@ -42,6 +49,9 @@ class SpeculationRules implements ArgumentInterface
         return self::MODE_PREFETCH;
     }
 
+    /**
+     * @return string
+     */
     public function getEagerness(): string
     {
         $eagerness = $this->getConfigValue('eagerness');
@@ -50,12 +60,10 @@ class SpeculationRules implements ArgumentInterface
             return $eagerness;
         }
 
-        return 'moderate';
+        return self::EAGERNESS_DEFAULT;
     }
 
     /**
-     * Check if the current mode is prerender
-     *
      * @return bool
      */
     public function isPrerenderMode(): bool
@@ -64,10 +72,6 @@ class SpeculationRules implements ArgumentInterface
     }
 
     /**
-     * Get prerendering change script for customer data reinitialization
-     * Returns script only when prerender mode is enabled
-     * Uses different approaches for Hyva vs Luma themes
-     *
      * @return string
      */
     public function getPrerenderingScript(): string
@@ -76,7 +80,6 @@ class SpeculationRules implements ArgumentInterface
             return '';
         }
 
-        // Hyva theme uses a custom event, Luma uses RequireJS
         $reloadAction = $this->isHyva()
             ? "window.dispatchEvent(new CustomEvent('reload-customer-section-data'));"
             : "require(['Magento_Customer/js/customer-data'], customerData => {
@@ -94,9 +97,11 @@ class SpeculationRules implements ArgumentInterface
         JS;
     }
 
+    /**
+     * @return array
+     */
     public function getSpeculationRules(): array
     {
-        // Possible future development: add support for multiple modes and rulesets at once.
         return [
             $this->getMode() => [
                 [
@@ -108,34 +113,31 @@ class SpeculationRules implements ArgumentInterface
         ];
     }
 
+    /**
+     * @return string
+     * @throws InvalidArgumentException
+     */
     public function getSpeculationRulesJson(): string
     {
-        $rules = $this->getSpeculationRules();
-
-        return $this->serializer->serialize($rules);
+        return $this->serializer->serialize($this->getSpeculationRules());
     }
 
+    /**
+     * @return array
+     */
     protected function buildRules(): array
     {
-        // Include all URLs by default
         $rules = [
             'and' => [
                 ['href_matches' => '/*']
             ],
         ];
 
-        // Exclude path patterns (wildcards)
         $rules['and'][] = $this->getExcludedPaths();
 
-        // Exclude file extensions
         array_push($rules['and'], ...$this->getExcludedExtensions());
-
-        // Exclude selectors
         array_push($rules['and'], ...$this->getExcludedSelectors());
 
-        // TODO: Add extensibility?
-
-        // Always exclude common unsafe targets
         $rules['and'][] = ['not' => ['selector_matches' => '[rel=nofollow]']];
         $rules['and'][] = ['not' => ['selector_matches' => '[target=_blank]']];
         $rules['and'][] = ['not' => ['selector_matches' => '[target=_parent]']];
@@ -144,14 +146,23 @@ class SpeculationRules implements ArgumentInterface
         return $rules;
     }
 
+    /**
+     * @param string $key
+     * @return string|null
+     */
     protected function getConfigValue(string $key): ?string
     {
-        return $this->scopeConfig->getValue(
+        $value = $this->scopeConfig->getValue(
             self::CONFIG_PATH . $key,
             ScopeInterface::SCOPE_STORE
         );
+
+        return $value === null ? null : (string)$value;
     }
 
+    /**
+     * @return array
+     */
     public function getExcludedPaths(): array
     {
         $paths = explode("\n", (string)$this->getConfigValue('exclude_paths'));
@@ -159,6 +170,7 @@ class SpeculationRules implements ArgumentInterface
         foreach ($paths as &$pattern) {
             $pattern = trim(trim($pattern), '/');
         }
+        unset($pattern);
         $paths = array_filter($paths);
 
         if (empty($paths)) {
@@ -168,42 +180,42 @@ class SpeculationRules implements ArgumentInterface
         return ['not' => ['href_matches' => '/*(' . implode('|', $paths) . ')/*']];
     }
 
+    /**
+     * @return array
+     */
     public function getExcludedExtensions(): array
     {
-        $rules = [];
-
         $extensions = explode(',', (string)$this->getConfigValue('exclude_extensions'));
         $extensions = array_filter(array_map('trim', $extensions));
-        foreach ($extensions as $extension) {
-            $rules[] = ['not' => ['href_matches' => sprintf('*.%s', ltrim($extension, '.'))]];
-        }
 
-        return $rules;
-    }
-
-    public function getExcludedSelectors(): array
-    {
-        $rules = [];
-
-        $selectors = explode("\n", (string)$this->getConfigValue('exclude_selectors'));
-        $selectors = array_filter(array_map('trim', $selectors));
-        foreach ($selectors as $selector) {
-            $rules[] = ['not' => ['selector_matches' => $selector]];
-        }
-
-        return $rules;
+        return array_map(
+            static fn(string $extension): array => ['not' => ['href_matches' => sprintf('*.%s', ltrim($extension, '.'))]],
+            array_values($extensions)
+        );
     }
 
     /**
-     * Check if current theme is Hyva or extends from Hyva
-     *
+     * @return array
+     */
+    public function getExcludedSelectors(): array
+    {
+        $selectors = explode("\n", (string)$this->getConfigValue('exclude_selectors'));
+        $selectors = array_filter(array_map('trim', $selectors));
+
+        return array_map(
+            static fn(string $selector): array => ['not' => ['selector_matches' => $selector]],
+            array_values($selectors)
+        );
+    }
+
+    /**
      * @return bool
      */
-    private function isHyva(): bool
+    protected function isHyva(): bool
     {
         $theme = $this->viewDesign->getDesignTheme();
         while ($theme) {
-            if (strpos($theme->getCode(), 'Hyva/') === 0) {
+            if (str_starts_with((string)$theme->getCode(), 'Hyva/')) {
                 return true;
             }
             $theme = $theme->getParentTheme();
