@@ -26,7 +26,7 @@ class ViewTransitions implements ArgumentInterface
             ScopeInterface::SCOPE_STORE
         );
 
-        return $value === null ? null : (string)$value;
+        return is_scalar($value) ? (string)$value : null;
     }
 
     /**

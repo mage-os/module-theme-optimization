@@ -2,6 +2,8 @@
 
 namespace MageOS\ThemeOptimization\Plugin\Framework\App\Response;
 
+use Laminas\Http\Header\CacheControl;
+use Laminas\Http\Header\HeaderInterface;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
 use Magento\Framework\App\Response\Http as ResponseHttp;
@@ -38,7 +40,7 @@ class Http
         }
 
         $cacheControlHeader = $subject->getHeader('Cache-Control');
-        if (!$cacheControlHeader) {
+        if (!$cacheControlHeader instanceof HeaderInterface) {
             return;
         }
 
@@ -63,13 +65,11 @@ class Http
             return $result;
         }
 
-        $cacheControlHeader = $subject->getHeader('Cache-Control');
-        if (!$cacheControlHeader) {
-            return $result;
-        }
-
         if ($this->isRequestCacheable === true) {
-            $cacheControlHeader->removeDirective('no-store');
+            $cacheControlHeader = $subject->getHeader('Cache-Control');
+            if ($cacheControlHeader instanceof CacheControl) {
+                $cacheControlHeader->removeDirective('no-store');
+            }
         }
         $this->isRequestCacheable = false;
 
@@ -151,10 +151,12 @@ class Http
      */
     protected function getConfig(string $configPath, int|string|null $store = null): string
     {
-        return (string)$this->scopeConfig->getValue(
+        $value = $this->scopeConfig->getValue(
             $configPath,
             ScopeInterface::SCOPE_STORE,
             $store
         );
+
+        return is_scalar($value) ? (string) $value : '';
     }
 }

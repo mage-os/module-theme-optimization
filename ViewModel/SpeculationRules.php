@@ -127,7 +127,9 @@ class SpeculationRules implements ArgumentInterface
      */
     public function getSpeculationRulesJson(): string
     {
-        return $this->serializer->serialize($this->getSpeculationRules());
+        $json = $this->serializer->serialize($this->getSpeculationRules());
+
+        return is_string($json) ? $json : '';
     }
 
     /**
@@ -173,7 +175,7 @@ class SpeculationRules implements ArgumentInterface
             ScopeInterface::SCOPE_STORE
         );
 
-        return $value === null ? null : (string)$value;
+        return is_scalar($value) ? (string)$value : null;
     }
 
     /**
