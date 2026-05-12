@@ -8,10 +8,13 @@ use Magento\Framework\App\Response\Http as ResponseHttp;
 use Magento\PageCache\Model\Config;
 use Magento\Store\Model\ScopeInterface;
 
+/**
+ * Plugin to modify cache headers for BFCache functionality
+ */
 class Http
 {
-    public const string XML_PATH_ENABLE = 'system/bfcache/general/enable';
-    public const string XML_PATH_EXCLUDE_URL_PATTERNS = 'system/bfcache/scope/exclude_url_patterns';
+    public const XML_PATH_ENABLE = 'system/bfcache/general/enable';
+    public const XML_PATH_EXCLUDE_URL_PATTERNS = 'system/bfcache/scope/exclude_url_patterns';
 
     protected bool $isRequestCacheable = false;
 
@@ -23,6 +26,8 @@ class Http
     }
 
     /**
+     * Intercept before setting no-cache headers to determine if request is cacheable
+     *
      * @param ResponseHttp $subject
      * @return void
      */
@@ -46,6 +51,8 @@ class Http
     }
 
     /**
+     * Update cache headers after setting no-cache headers
+     *
      * @param ResponseHttp $subject
      * @param mixed $result
      * @return mixed
@@ -70,21 +77,27 @@ class Http
     }
 
     /**
+     * Check if request is cacheable based on cache control header
+     *
      * @param string $cacheControl
      * @return bool
      */
     protected function isRequestCacheable(string $cacheControl): bool
     {
+        // FPC hits will not have public or private cache control directives -- already processed
         if (!str_contains($cacheControl, 'public')
             && !str_contains($cacheControl, 'private')
             && !str_contains($cacheControl, 'no-store')) {
             return true;
         }
 
+        // FPC misses will be cacheable if they have a public directive
         return (bool)preg_match('/public.*s-maxage=(\d+)/', $cacheControl);
     }
 
     /**
+     * Check if the request URI contains any excluded URL patterns (case-insensitive, partial match).
+     *
      * @param string $requestURI
      * @return bool
      */
@@ -106,6 +119,8 @@ class Http
     }
 
     /**
+     * Parse exclude patterns from config string.
+     *
      * @param string $patterns
      * @return array
      */
@@ -115,6 +130,8 @@ class Http
     }
 
     /**
+     * Check if BFCache is enabled
+     *
      * @return bool
      */
     protected function isEnabled(): bool
@@ -126,6 +143,8 @@ class Http
     }
 
     /**
+     * Get configuration value by path
+     *
      * @param string $configPath
      * @param int|string|null $store
      * @return string

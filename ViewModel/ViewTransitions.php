@@ -8,7 +8,7 @@ use Magento\Store\Model\ScopeInterface;
 
 class ViewTransitions implements ArgumentInterface
 {
-    protected const string CONFIG_PATH = 'system/view_transitions/';
+    protected const CONFIG_PATH = 'system/view_transitions/';
 
     public function __construct(
         protected ScopeConfigInterface $scopeConfig

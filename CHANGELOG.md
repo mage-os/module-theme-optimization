@@ -9,11 +9,10 @@
 ### Changed
 - Added `declare(strict_types=1)` to all PHP classes.
 - Added explicit return types on all methods (including `Setup\Patch\Data\UpdateSpeculationRulesConfigPathPatch::apply()`, `getAliases()` and `getDependencies()`).
-- Typed class constants (`const string`, `const array`) to take advantage of PHP 8.3+ typed constants.
 - Replaced `strpos($s, $needle) === 0` with `str_starts_with()` for clarity.
 - Typed nullable parameters explicitly (e.g. `int|string|null $store`) to avoid the PHP 8.4 implicit nullable deprecation.
 - Made constructor-promoted properties and helper methods `protected` instead of `private` for easier extension by downstream modules.
-- Minor refactors (`array_map` in place of manual loops, `unset` of loop reference variable).
+- Minor refactor: `unset` of loop reference variable after foreach-by-reference.
 
 ### Notes
 - No public API change: all previously `public` methods keep the same signatures.

@@ -12,12 +12,12 @@ use InvalidArgumentException;
 
 class SpeculationRules implements ArgumentInterface
 {
-    protected const string CONFIG_PATH = 'system/speculation_rules/';
-    protected const string MODE_PREFETCH = 'prefetch';
-    protected const string MODE_PRERENDER = 'prerender';
-    protected const string EAGERNESS_DEFAULT = 'moderate';
-    protected const array FETCH_MODES = [self::MODE_PREFETCH, self::MODE_PRERENDER];
-    protected const array EAGERNESS_MODES = ['conservative', 'moderate', 'eager'];
+    protected const CONFIG_PATH = 'system/speculation_rules/';
+    protected const MODE_PREFETCH = 'prefetch';
+    protected const MODE_PRERENDER = 'prerender';
+    protected const EAGERNESS_DEFAULT = 'moderate';
+    protected const FETCH_MODES = [self::MODE_PREFETCH, self::MODE_PRERENDER];
+    protected const EAGERNESS_MODES = ['conservative', 'moderate', 'eager'];
 
     public function __construct(
         protected ScopeConfigInterface $scopeConfig,
@@ -64,6 +64,8 @@ class SpeculationRules implements ArgumentInterface
     }
 
     /**
+     * Check if the current mode is prerender
+     *
      * @return bool
      */
     public function isPrerenderMode(): bool
@@ -72,6 +74,10 @@ class SpeculationRules implements ArgumentInterface
     }
 
     /**
+     * Get prerendering change script for customer data reinitialization
+     * Returns script only when prerender mode is enabled
+     * Uses different approaches for Hyva vs Luma themes
+     *
      * @return string
      */
     public function getPrerenderingScript(): string
@@ -80,6 +86,7 @@ class SpeculationRules implements ArgumentInterface
             return '';
         }
 
+        // Hyva theme uses a custom event, Luma uses RequireJS
         $reloadAction = $this->isHyva()
             ? "window.dispatchEvent(new CustomEvent('reload-customer-section-data'));"
             : "require(['Magento_Customer/js/customer-data'], customerData => {
@@ -102,6 +109,7 @@ class SpeculationRules implements ArgumentInterface
      */
     public function getSpeculationRules(): array
     {
+        // Possible future development: add support for multiple modes and rulesets at once.
         return [
             $this->getMode() => [
                 [
@@ -127,17 +135,25 @@ class SpeculationRules implements ArgumentInterface
      */
     protected function buildRules(): array
     {
+        // Include all URLs by default
         $rules = [
             'and' => [
                 ['href_matches' => '/*']
             ],
         ];
 
+        // Exclude path patterns (wildcards)
         $rules['and'][] = $this->getExcludedPaths();
 
+        // Exclude file extensions
         array_push($rules['and'], ...$this->getExcludedExtensions());
+
+        // Exclude selectors
         array_push($rules['and'], ...$this->getExcludedSelectors());
 
+        // TODO: Add extensibility?
+
+        // Always exclude common unsafe targets
         $rules['and'][] = ['not' => ['selector_matches' => '[rel=nofollow]']];
         $rules['and'][] = ['not' => ['selector_matches' => '[target=_blank]']];
         $rules['and'][] = ['not' => ['selector_matches' => '[target=_parent]']];
@@ -185,13 +201,15 @@ class SpeculationRules implements ArgumentInterface
      */
     public function getExcludedExtensions(): array
     {
+        $rules = [];
+
         $extensions = explode(',', (string)$this->getConfigValue('exclude_extensions'));
         $extensions = array_filter(array_map('trim', $extensions));
+        foreach ($extensions as $extension) {
+            $rules[] = ['not' => ['href_matches' => sprintf('*.%s', ltrim($extension, '.'))]];
+        }
 
-        return array_map(
-            static fn(string $extension): array => ['not' => ['href_matches' => sprintf('*.%s', ltrim($extension, '.'))]],
-            array_values($extensions)
-        );
+        return $rules;
     }
 
     /**
@@ -199,16 +217,20 @@ class SpeculationRules implements ArgumentInterface
      */
     public function getExcludedSelectors(): array
     {
+        $rules = [];
+
         $selectors = explode("\n", (string)$this->getConfigValue('exclude_selectors'));
         $selectors = array_filter(array_map('trim', $selectors));
+        foreach ($selectors as $selector) {
+            $rules[] = ['not' => ['selector_matches' => $selector]];
+        }
 
-        return array_map(
-            static fn(string $selector): array => ['not' => ['selector_matches' => $selector]],
-            array_values($selectors)
-        );
+        return $rules;
     }
 
     /**
+     * Check if current theme is Hyva or extends from Hyva
+     *
      * @return bool
      */
     protected function isHyva(): bool

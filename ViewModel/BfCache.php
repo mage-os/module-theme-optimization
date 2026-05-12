@@ -8,12 +8,17 @@ use Magento\Framework\App\Http\Context;
 use Magento\Framework\View\Element\Block\ArgumentInterface;
 use Magento\Store\Model\ScopeInterface;
 
+/**
+ * BFCache ViewModel
+ * Provides data and configuration for BFCache templates.
+ * Handles configuration management and business logic for frontend templates.
+ */
 class BfCache implements ArgumentInterface
 {
-    protected const string XML_PATH_ENABLE_USER_INTERACTION_RELOAD_MINICART =
+    protected const XML_PATH_ENABLE_USER_INTERACTION_RELOAD_MINICART =
         'system/bfcache/general/enable_user_interaction_reload_minicart';
 
-    protected const string XML_PATH_AUTO_CLOSE_MENU_MOBILE =
+    protected const XML_PATH_AUTO_CLOSE_MENU_MOBILE =
         'system/bfcache/general/auto_close_menu_mobile';
 
     public function __construct(
@@ -23,6 +28,8 @@ class BfCache implements ArgumentInterface
     }
 
     /**
+     * Check if mini cart should reload on user interaction
+     *
      * @return bool
      */
     public function isReloadMiniCartOnInteraction(): bool
@@ -34,6 +41,8 @@ class BfCache implements ArgumentInterface
     }
 
     /**
+     * Check if mobile menu should auto-close
+     *
      * @return bool
      */
     public function autoCloseMenuMobile(): bool
@@ -45,6 +54,8 @@ class BfCache implements ArgumentInterface
     }
 
     /**
+     * Check if customer is logged in
+     *
      * @return bool
      */
     public function isCustomerLoggedIn(): bool
