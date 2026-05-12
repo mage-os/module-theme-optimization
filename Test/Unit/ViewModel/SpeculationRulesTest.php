@@ -9,6 +9,7 @@ use Magento\Framework\View\DesignInterface;
 use Magento\Framework\View\Element\Block\ArgumentInterface;
 use Magento\Store\Model\ScopeInterface;
 use MageOS\ThemeOptimization\ViewModel\SpeculationRules;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class SpeculationRulesTest extends TestCase
@@ -67,10 +68,8 @@ class SpeculationRulesTest extends TestCase
 
     // Test Category #2: Configuration Tests - isEnabled() method
 
-    /**
-     * @dataProvider enabledDataProvider
-     */
-    public function testIsEnabled($configValue, bool $expected): void
+    #[DataProvider('enabledDataProvider')]
+    public function testIsEnabled(mixed $configValue, bool $expected): void
     {
         $this->scopeConfigMock->expects($this->once())
             ->method('getValue')
@@ -81,7 +80,7 @@ class SpeculationRulesTest extends TestCase
         $this->assertEquals($expected, $result);
     }
 
-    public function enabledDataProvider(): array
+    public static function enabledDataProvider(): array
     {
         return [
             'string true' => ['1', true],
@@ -98,10 +97,8 @@ class SpeculationRulesTest extends TestCase
 
     // Test Category #3: Eagerness Mode Tests
 
-    /**
-     * @dataProvider eagernessDataProvider
-     */
-    public function testGetEagerness($configValue, string $expected): void
+    #[DataProvider('eagernessDataProvider')]
+    public function testGetEagerness(mixed $configValue, string $expected): void
     {
         $this->scopeConfigMock->expects($this->once())
             ->method('getValue')
@@ -112,7 +109,7 @@ class SpeculationRulesTest extends TestCase
         $this->assertEquals($expected, $result);
     }
 
-    public function eagernessDataProvider(): array
+    public static function eagernessDataProvider(): array
     {
         return [
             'conservative' => ['conservative', 'conservative'],
