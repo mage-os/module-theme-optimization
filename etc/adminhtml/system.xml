@@ -121,7 +121,7 @@
                 <field id="enable" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
                     <label>Enable View Transitions</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
-                    <comment>Enable view transitions when loading pages on the same domain.</comment>
+                    <comment>Enable view transitions when loading pages on the same domain (except Hyvä).</comment>
                 </field>
                 <field id="enable_admin" translate="label tooltip" type="select" sortOrder="12" showInDefault="1" showInWebsite="0" showInStore="0" canRestore="1">
                     <label>Enable View Transitions for Admin</label>
@@ -131,7 +131,7 @@
                 <field id="enable_for_bfcache" translate="label comment" type="select" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
                     <label>Apply on Back/Forward</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
-                    <comment>Apply view transitions when going back or forward with browser navigation. Back/Forward Cache can render pages faster without.</comment>
+                    <comment>Apply view transitions when going back or forward with browser navigation (except Hyvä). Back/Forward Cache can render pages faster without.</comment>
                 </field>
             </group>
         </section>
