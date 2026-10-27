@@ -1,10 +1,10 @@
 # Changelog
 
-## [Unreleased]
+## [2.4.0] - 2026-10-27
 
 ### Changed
-- The bfcache handler script is no longer loaded on Hyvä themes, which already handle bfcache restores. The bfcache response headers and URL exclusions still apply ([#28](https://github.com/mage-os/module-theme-optimization/issues/28)).
-- The view transitions style and script are no longer loaded on Hyvä themes. Hyvä includes view transitions in its theme CSS, and the module output overrode theme adjustments ([#32](https://github.com/mage-os/module-theme-optimization/issues/32)).
+- The bfcache handler script is no longer loaded on Hyvä themes, which already handle bfcache restores as of Hyvä Default Theme 1.4. The bfcache response headers and URL exclusions still apply ([#28](https://github.com/mage-os/module-theme-optimization/issues/28)).
+- The view transitions style and script are no longer loaded on Hyvä themes. Hyvä Default Theme 1.4+ includes view transitions in its theme CSS, and the module output overrode theme adjustments ([#32](https://github.com/mage-os/module-theme-optimization/issues/32)).
 
 ### Removed
 - `view/frontend/templates/hyva/bfcache/handler.phtml`.
